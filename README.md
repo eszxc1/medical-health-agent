@@ -236,5 +236,5 @@ docker exec -it rag-neo4j cypher-shell -u neo4j -p <密码> "MATCH ()-[r]->() RE
 
 ## 📄 许可证与链接
 
-- 项目仓库：[GitHub 链接（待补充）](#)
+- 项目仓库：https://github.com/eszxc1/medical-health-agent
 - 许可证：[MIT License](./LICENSE)
