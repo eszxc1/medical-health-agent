@@ -12,62 +12,67 @@
 
 ```mermaid
 flowchart TD
-    subgraph Client["① 客户端层"]
-        Browser["浏览器<br/>Vue2 SPA：登录/注册/聊天"]
+    subgraph Client["1 客户端层"]
+        Browser["浏览器 Vue2 SPA<br/>登录/注册/聊天"]
     end
 
-    subgraph App["② 应用层 FastAPI :8000"]
+    subgraph App["2 应用层 FastAPI 8000"]
         Main["main.py"]
         R1["users 路由"]
         R2["chat 路由<br/>chatAgentStream / chatNoAgentStream"]
         R3["history 路由"]
         Svc["Service 层"]
         Dao["DAO 层"]
-        Main --> R1 & R2 & R3
-        R1 & R2 & R3 --> Svc --> Dao
+        Main --> R1
+        Main --> R2
+        Main --> R3
+        R1 --> Svc
+        R2 --> Svc
+        R3 --> Svc
+        Svc --> Dao
     end
 
-    subgraph AI["③ AI 层"]
+    subgraph AI["3 AI 层"]
         Agent["LangChain Agent<br/>create_agent + 14 工具"]
-        LLM["LLM · Qwen (DashScope)"]
+        LLM["LLM Qwen DashScope"]
         Langfuse["Langfuse 追踪"]
         Agent --> LLM
-        Agent -.->|追踪| Langfuse
+        Agent -.-> Langfuse
     end
 
-    subgraph MCP["④ 工具执行层 :9000（独立进程）"]
-        MCPsrv["MCP Server (FastMCP)"]
+    subgraph MCP["4 工具执行层 9000 独立进程"]
+        MCPsrv["MCP Server FastMCP"]
     end
 
-    subgraph Data["⑤ 数据层"]
+    subgraph Data["5 数据层"]
         MySQL["MySQL<br/>业务 + 健康档案"]
         Neo4j["Neo4j<br/>医学知识图谱"]
         Redis["Redis<br/>验证码"]
-        Amap["高德地图 API<br/>天气/路线/POI"]
+        Amap["高德地图 API<br/>天气路线POI"]
     end
 
-    subgraph Deploy["⑥ 部署层"]
+    subgraph Deploy["6 部署层"]
         Nginx["Nginx<br/>前端静态托管"]
         Docker["Docker Compose<br/>6 服务编排"]
     end
 
-    Browser -->|"SSE 流式回传（逐 token）"| R2
-    R2 -->|"astream_events"| Agent
+    Browser -->|SSE 流式回传| R2
+    R2 -->|astream_events| Agent
     Nginx --> Browser
 
-    Agent -->|"Agent 路径：工具调用 (HTTP)"| MCPsrv
-    R2 -->|"非 Agent 路径：GraphCypherQAChain (Cypher)"| Neo4j
+    Agent -->|工具调用| MCPsrv
+    R2 -->|GraphCypherQAChain| Neo4j
 
-    MCPsrv -.->|HTTP| MySQL
-    MCPsrv -.->|HTTP| Neo4j
-    MCPsrv -.->|HTTP| Redis
+    MCPsrv -.-> MySQL
+    MCPsrv -.-> Neo4j
+    MCPsrv -.-> Redis
     Agent -.-> Amap
 
     Dao --> MySQL
-    Docker -.->|编排| MCPsrv
-    Docker -.->|编排| MySQL
-    Docker -.->|编排| Neo4j
-    Docker -.->|编排| Nginx
+    Docker -.-> MCPsrv
+    Docker -.-> MySQL
+    Docker -.-> Neo4j
+    Docker -.-> Nginx
 ```
 
 ## 🛠️ 技术栈
