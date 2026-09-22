@@ -1,0 +1,17 @@
+# ===== MCP Server 镜像 =====
+# 只复制 MCP Server 及其依赖模块（common / health），减小镜像体积
+FROM python:3.10-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# MCP Server 本体 + 依赖模块
+COPY mymcp/ ./mymcp/
+COPY common/ ./common/
+COPY health/ ./health/
+
+EXPOSE 9000
+
+CMD ["python", "mymcp/MCPServer.py"]

@@ -1,0 +1,11 @@
+# ===== Neo4j 数据导入器（一次性任务） =====
+# 用途：在 Neo4j 就绪后，把 /import 下挂载的 CSV 批量导入图数据库。
+FROM python:3.10-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir neo4j
+
+COPY neo4j-data/import_neo4j.py /app/import_neo4j.py
+
+CMD ["python", "/app/import_neo4j.py"]

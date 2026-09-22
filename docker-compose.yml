@@ -1,0 +1,145 @@
+# ============================================================
+# 医疗知识 RAG 系统 — Docker 编排
+# 用法：cp .env.example .env（填入真实 Key）后 docker compose up -d
+# 说明：用户要求 4 个服务（neo4j / mcp-server / backend / frontend），
+#       但项目还依赖 MySQL（suse_agent 库）和 Redis（验证码），故一并编排。
+# ============================================================
+
+services:
+  # ---------- 数据库：MySQL（业务数据 + 健康档案） ----------
+  mysql:
+    image: mysql:8.0
+    container_name: rag-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_PASSWORD:-changeme}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE:-suse_agent}"
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # 自动初始化表结构（按文件名顺序执行：base 先于 health）
+      - ./rag_server/sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ---------- 图数据库：Neo4j（医疗知识图谱） ----------
+  neo4j:
+    image: neo4j:5
+    container_name: rag-neo4j
+    restart: unless-stopped
+    environment:
+      # 格式 username/password，与 .env 的 NEO4J_USERNAME / NEO4J_PASSWORD 一致
+      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD:-changeme}"
+    ports:
+      - "7475:7474"   # HTTP 浏览器界面（宿主机避开本地 Neo4j 的 7474）
+      - "7688:7687"   # Bolt 协议（宿主机避开本地 Neo4j 的 7687）
+    volumes:
+      - neo4j_data:/data
+      # 医疗知识图谱 CSV 数据（只读挂载到 /import，供导入脚本使用）
+      - ./rag_server/neo4j-data:/import:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  # ---------- Neo4j 数据导入器（一次性任务，导入完自动退出） ----------
+  neo4j-import:
+    build:
+      context: ./rag_server
+      dockerfile: Dockerfile.import
+    container_name: rag-neo4j-import
+    restart: "no"
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-changeme}
+      CSV_DIR: /import
+    volumes:
+      - ./rag_server/neo4j-data:/import:ro
+    depends_on:
+      neo4j:
+        condition: service_healthy
+
+  # ---------- 缓存：Redis（邮箱验证码） ----------
+  redis:
+    image: redis:7-alpine
+    container_name: rag-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  # ---------- MCP Server（工具执行层） ----------
+  mcp-server:
+    build:
+      context: ./rag_server
+      dockerfile: Dockerfile.mcp
+    container_name: rag-mcp-server
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # 容器内用服务名访问，覆盖 .env 中的 localhost 默认值
+      MYSQL_HOST: mysql
+      NEO4J_URI: neo4j://neo4j:7687
+      REDIS_HOST: redis
+    ports:
+      - "9000:9000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(3); s.connect(('127.0.0.1', 9000)); s.close()"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    depends_on:
+      mysql:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # ---------- 后端（FastAPI + LangChain Agent） ----------
+  backend:
+    build:
+      context: ./rag_server
+      dockerfile: Dockerfile
+    container_name: rag-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MYSQL_HOST: mysql
+      NEO4J_URI: neo4j://neo4j:7687
+      MCP_SERVER_URL: http://mcp-server:9000/mcp
+      APP_HOST: 0.0.0.0
+      PYTHONUNBUFFERED: 1
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    depends_on:
+      mcp-server:
+        condition: service_started
+
+  # ---------- 前端（Vue 2 + Webpack 3） ----------
+  frontend:
+    build:
+      context: ./rag_app
+      dockerfile: Dockerfile
+    container_name: rag-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+  neo4j_data:

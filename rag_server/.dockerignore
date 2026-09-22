@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.log
+.env
+.git
+.gitignore
+.DS_Store
+.idea/
+.vscode/
+
+# Neo4j 数据 CSV（运行时挂载到容器，不进镜像，避免镜像膨胀）
+neo4j-data/nodes/
+neo4j-data/relations/
