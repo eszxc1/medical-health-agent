@@ -277,7 +277,8 @@ async def chat_agent_stream(question: str, request: Request, history_id: int = 0
                     tool_msg = f"正在调用工具: {tool_name}..."
                     print(f"[DEBUG] Agent 调用工具: {tool_name}")
                     # ★ 检测医疗/饮食相关工具，触发免责声明兜底
-                    if tool_name in ("evaluate_drug_safety", "save_health_plan", "get_disease_advice"):
+                    if tool_name in ("evaluate_drug_safety", "save_health_plan", "get_disease_advice",
+                                      "find_data", "get_health_plans"):
                         medical_tool_called = True
                     yield _sse({'type': 'tool', 'content': tool_msg})
 
@@ -310,12 +311,13 @@ async def chat_agent_stream(question: str, request: Request, history_id: int = 0
             # 为什么在服务端硬编码？—— LLM 有时会忘记输出免责声明，
             #    不能把医疗合规风险完全交给 AI，必须在流末尾强制追加。
             # 调整 3：只要正文输出任何健康/饮食/用药建议，即使没调 save_health_plan 也追加。
-            if not medical_tool_called:
-                medical_keywords = ["建议", "注意", "忌口", "宜吃", "慎用", "不宜", "禁忌",
-                                    "用药", "服药", "饮食", "运动", "食谱", "调理", "方案",
-                                    "副作用", "相互作用", "复诊", "就医", "处方"]
-                if any(kw in full_response for kw in medical_keywords):
-                    medical_tool_called = True
+            # if not medical_tool_called:
+            #     medical_keywords = ["忌口", "宜吃", "慎用", "不宜", "禁忌",
+            #                         "服药", "副作用", "相互作用", "复诊",
+            #                         "就医", "处方", "剂量", "治疗", "诊断"]
+            #     if any(kw in full_response for kw in medical_keywords):
+            #         medical_tool_called = True
+
             if medical_tool_called:
                 # ★ 使用 HTML 注释 <!--SPLIT--> 作为免责声明的唯一切割锚点
                 # 为什么不用 ⚠️ 或"免责声明"文本？

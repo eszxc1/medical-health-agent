@@ -498,9 +498,9 @@ export default {
 
       // ★ 修复：触发条件判断——仅当正文确属医疗/健康内容时才渲染声明框，
       //         普通闲聊（如"你好"）不再误触发该组件
-      if (!this.isMedicalContent(mainText)) {
-        return this.$md.render(mainText);
-      }
+      // if (!this.isMedicalContent(mainText)) {
+      //   return this.$md.render(mainText);
+      // }
 
       const mainHtml = this.$md.render(mainText);
       // 去掉 Markdown 引用符号 > 和多余空白，再渲染（**免责声明** 仍会加粗）
@@ -516,14 +516,14 @@ export default {
 
     // 医疗/健康关键词判断：比后端 medical_keywords 更精准，
     // 去掉"建议/注意/方案"这类问候中也会出现的宽泛词，避免普通闲聊误触发声明框
-    isMedicalContent(text) {
-      const keywords = [
-        '疾病', '症状', '过敏', '用药', '服药', '药物', '治疗', '诊断',
-        '高血压', '糖尿病', '忌口', '宜吃', '禁忌', '副作用', '处方',
-        '就医', '复诊', '饮食', '食谱', '慎用', '不宜', '调理', '检查',
-      ];
-      return keywords.some(kw => text.indexOf(kw) !== -1);
-    },
+    // isMedicalContent(text) {
+    //   const keywords = [
+    //     '疾病', '症状', '过敏', '用药', '服药', '药物', '治疗', '诊断',
+    //     '高血压', '糖尿病', '忌口', '宜吃', '禁忌', '副作用', '处方',
+    //     '就医', '复诊', '饮食', '食谱', '慎用', '不宜', '调理', '检查',
+    //   ];
+    //   return keywords.some(kw => text.indexOf(kw) !== -1);
+    // },
 
     newChat() {
       this.messages = [];
